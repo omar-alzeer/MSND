@@ -1,25 +1,59 @@
 from tkinter import *
 from tkinter import ttk
 import Pmw
-import json
+from PyNite import FEModel3D
 
 class App(Tk):
 	def __init__(self):
 		Tk.__init__(self)
-    
+
+		#self.geometry("430x285")
+
 		self.inputs = {
 			"Nodes" : {},
-			"Members" : [],
+			"Members" : {},
 			"Supports" : {},
 			"Loads" : {
 				"Pload":{},
 				"Dload":{}
 			}
 		}
+		Nodes = self.inputs["Nodes"]
+		Members = self.inputs["Members"]
+		Supports = self.inputs["Supports"]
+		Ploads = self.inputs["Loads"]["Pload"]
+		Dloads = self.inputs["Loads"]["Dload"]
+		
+		self.free = {
+			"Fixed":True,
+			"Free":False
+		}
+
+		self.releases = {
+			"Start":(True,False),
+			"End":(False,True),
+			"Both":(True,True),
+			"Unreleased":(False,False)
+		}
+
 		self.Nodes = self.inputs["Nodes"]
 		self.Members = self.inputs["Members"]
+		self.Supports = self.inputs["Supports"]
 		self.Ploads = self.inputs["Loads"]["Pload"]
 		self.Dloads = self.inputs["Loads"]["Dload"]
+		
+		#Menu widget
+		self.menu = Menu(self,tearoff=False)
+		self.config(menu=self.menu)
+		
+		self.run = Menu(self.menu,tearoff=False)
+		self.run.add_command(label="analyze",command=self.analyze)
+		self.menu.add_cascade(label="Run", menu=self.run)
+
+		self.help = Menu(self.menu,tearoff=False)
+		self.help.add_command(label="About")
+		self.menu.add_cascade(label="Help", menu=self.help)
+
 
 		# NoteBook widget
 		self.notebook = Pmw.NoteBook(self)
@@ -45,8 +79,9 @@ class App(Tk):
 		self.Members_widgets = [
 			[
 				None,
-				Label(self.p2,text="Start Node"),
-				Label(self.p2,text="End Node")
+				Label(self.p2,text="Start"),
+				Label(self.p2,text="End"),
+				Label(self.p2,text="Release")
 			]
 		]
 		
@@ -91,31 +126,27 @@ class App(Tk):
 		#widgets of Nodes page
 		self.add_node_row()
 		self.deploy_widgets(self.Nodes_widgets)  
-		self.add_node_button= Button(self.p1,text="add",command=self.add_node)
+		self.add_node_button= ttk.Button(self.p1,text="add",command=self.add_node,width=7)
 		self.add_node_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		
 		# widgets of Members page
 		self.add_member_row()
 		self.deploy_widgets(self.Members_widgets)  
-		self.add_member_button= Button(self.p2,text="add",command=self.add_member)
+		self.add_member_button= ttk.Button(self.p2,text="add",command=self.add_member,width=7)
 		self.add_member_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		
 		# widgets of Supports page
 		self.add_support_row()
 		self.deploy_widgets(self.Supports_widgets)
-		self.add_support_button= Button(self.p3,text="add",command=self.add_support)
+		self.add_support_button= ttk.Button(self.p3,text="add",command=self.add_support,width=7)
 		self.add_support_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		
 		# widgets of point_load
-#		self.x = Label(self.p4,text = "still empty until\nyou add load")
-#		self.x.pack(expand=YES,anchor=CENTER)
-		self.add_Pload_button= Button(self.p4,text="add",command=self.add_Pload)
+		self.add_Pload_button= ttk.Button(self.p4,text="add",command=self.add_Pload,width=7)
 		self.add_Pload_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		
 		# widgets of dist_load
-#		self.y = Label(self.p5,text = "still empty until\nyou add load")
-#		self.y.pack(expand=YES,anchor=CENTER)
-		self.add_Dload_button= Button(self.p5,text="add",command=self.add_Dload)
+		self.add_Dload_button= ttk.Button(self.p5,text="add",command=self.add_Dload,width=7)
 		self.add_Dload_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 	
 	def deploy_widgets(self,widgets_list):
@@ -153,97 +184,122 @@ class App(Tk):
 	def add_node_row(self):
 		self.Nodes.update({
 			f"N{self.node_number}":{
-				"X":StringVar(),
-				"Y":StringVar()
+				"X":DoubleVar(),
+				"Y":DoubleVar()
 			}
 		})
 		self.Nodes_widgets.append([
 			Label(self.p1,text=f"N{self.node_number}",width=4),
-			Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number}"]["X"],width=10),
-			Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number}"]["Y"],width=10)
+			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number}"]["X"],width=9),
+			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number}"]["Y"],width=9)
 		])
-		self.update_members()
-		self.update_support()
+		self.update_nodes_list()
+		self.update_members_list(self.Supports_widgets,self.Nodes)
   
 	def add_member_row(self):
-		self.Members.append(f"M{self.member_number}")
+		self.Members.update({
+			f"M{self.member_number}":{
+				"start_node":StringVar(),
+				"end_node":StringVar(),
+				"release":StringVar(value="Unreleased")
+			}
+		})
 		self.Members_widgets.append([
 			Label(self.p2,text=f"M{self.member_number}",width=4),
-			ttk.Combobox(self.p2,textvariable=StringVar(),width=10),
-			ttk.Combobox(self.p2,textvariable=StringVar(),width=10)
+			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["start_node"],width=6),
+			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["end_node"],width=6),
+			ttk.Combobox(self.p2,values=("Start","End","Both","Unreleased"),textvariable=self.Members[f"M{self.member_number}"]["release"],width=6)
 		])
+		self.update_members_list(self.Pload_widgets,self.Members)
 	
 	def add_support_row(self):
-	     self.Supports_widgets.append([
+		self.Supports.update({
+			f"S{self.support_number}":{
+				"Node":StringVar(),
+				"Rx":StringVar(value="Free"),
+				"Ry":StringVar(value="Free"),
+				"Mz":StringVar(value="Free")
+			}
+		})
+		self.Supports_widgets.append([
 	     	Label(self.p3,text=f"S{self.support_number}",width=4),
-	     	Pmw.ComboBox(self.p3,scrolledlist_items=list(self.Nodes.keys()),entry_width=10),
-	     	Pmw.ComboBox(self.p3,scrolledlist_items=("Free","Fixed"),entry_width=10),
-	     	Pmw.ComboBox(self.p3,scrolledlist_items=("Free","Fixed"),entry_width=10),
-	     	Pmw.ComboBox(self.p3,scrolledlist_items=("Free","Fixed"),entry_width=10)
+	     	ttk.Combobox(self.p3,values=list(self.Nodes.keys()),textvariable=self.Supports[f"S{self.support_number}"]["Node"],width=6),
+	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number}"]["Rx"],width=6),
+	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number}"]["Ry"],width=6),
+	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number}"]["Mz"],width=6)
 	     ])
 	
 	def add_Pload_row(self):
 		self.Ploads.update({
 			f"PL{self.Pload_number}":{
-				"P":StringVar(),
-				"X":StringVar()
+				"Member":StringVar(),
+				"Direction":StringVar(value="Fy"),
+				"P":DoubleVar(),
+				"X":DoubleVar()
 			}
 		})
 		self.Pload_widgets.append([
 			Label(self.p4,text=f"PL{self.Pload_number}",width=4),
-			Pmw.ComboBox(self.p4,scrolledlist_items=list(self.Members),entry_width=10),
-			Pmw.ComboBox(self.p4,scrolledlist_items=("vertical","parallel"),entry_width=10),
-			Entry(self.p4,textvariable=self.Ploads[f"PL{self.Pload_number}"]["P"],width=10),
-			Entry(self.p4,textvariable=self.Ploads[f"PL{self.Pload_number}"]["X"],width=10)
+			ttk.Combobox(self.p4,values=list(self.Members.keys()),textvariable=self.Ploads[f"PL{self.Pload_number}"]["Member"],width=6),
+			ttk.Combobox(self.p4,values=("Fy","Fx","Mz"),textvariable=self.Ploads[f"PL{self.Pload_number}"]["Direction"],width=6),
+			ttk.Entry(self.p4,textvariable=self.Ploads[f"PL{self.Pload_number}"]["P"],width=9),
+			ttk.Entry(self.p4,textvariable=self.Ploads[f"PL{self.Pload_number}"]["X"],width=9)
 		])
 	
 	def add_Dload_row(self):
-		self.Ploads.update({
-			f"DL{self.Pload_number}":{
-				"W1":StringVar(),
-				"W2":StringVar(),
-				"X1":StringVar(),
-				"X2":StringVar()
+		self.Dloads.update({
+			f"DL{self.Dload_number}":{
+				"Member":StringVar(),
+				"Direction":StringVar(value="Fy"),
+				"W1":DoubleVar(),
+				"W2":DoubleVar(),
+				"X1":DoubleVar(),
+				"X2":DoubleVar()
 			}
 		})
 		self.Dload_widgets.append([
 			Label(self.p5,text=f"DL{self.Dload_number}",width=4),
-			Pmw.ComboBox(self.p5,scrolledlist_items=list(self.Members),entry_width=10),
-			Pmw.ComboBox(self.p5,scrolledlist_items=("vertical","parallel"),entry_width=10),
-			Entry(self.p5,textvariable=self.Ploads[f"DL{self.Pload_number}"]["W1"],width=10),
-			Entry(self.p5,textvariable=self.Ploads[f"DL{self.Pload_number}"]["W2"],width=10),
-			Entry(self.p5,textvariable=self.Ploads[f"DL{self.Pload_number}"]["X1"],width=10),
-			Entry(self.p5,textvariable=self.Ploads[f"DL{self.Pload_number}"]["X2"],width=10)
+			ttk.Combobox(self.p5,values=list(self.Members),textvariable=self.Dloads[f"DL{self.Dload_number}"]["Member"],width=6),
+			ttk.Combobox(self.p5,values=("Fx","Fy"),textvariable=self.Dloads[f"DL{self.Dload_number}"]["Direction"],width=6),
+			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number}"]["W1"],width=9),
+			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number}"]["W2"],width=9),
+			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number}"]["X1"],width=9),
+			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number}"]["X2"],width=9)
 		])
 
-	def update_members(self):
-		if len(self.Members_widgets) > 1:
-			for i in range(1,len(self.Members_widgets)):
-				for j in range(1,len(self.Members_widgets[i])):
-					self.Members_widgets[i].pop()
-        
+	def update_nodes_list(self):
 		for i in range(1,len(self.Members_widgets)):
 			for j in range(1,3):
-				self.Members_widgets[i].append(Pmw.ComboBox(
-					self.p2,
-					scrolledlist_items=list(self.Nodes.keys()),
-					entry_width=10))  
-		self.deploy_widgets(self.Members_widgets)
-
-	def update_support(self):
-		if len(self.Supports_widgets) > 1:
-			for i in range(1,len(self.Supports_widgets)):
-			     self.Supports_widgets[i].remove(self.Supports_widgets[i][1])
-        
-		for i in range(1,len(self.Supports_widgets)):
-			self.Supports_widgets[i].insert(1,
-				Pmw.ComboBox(
-					self.p3,
-					scrolledlist_items=list(self.Nodes.keys()),
-					entry_width=10)
-			)
-		self.deploy_widgets(self.Supports_widgets)
-  
+				self.Members_widgets[i][j]["values"]=list(self.Nodes.keys())
+	
+	def update_members_list(self,widgets_list,var_dict):
+		for i in range(1,len(widgets_list)):
+			widgets_list[i][1]["values"]=list(var_dict.keys())
+		
+	def analyze(self):
+		model = FEModel3D()
+		model.add_material("Steel",29000,11200,0.3,2.836e-4)
+		
+		for i,j in self.Nodes.items():
+			model.add_node(i,j["X"].get(),j["Y"].get(),0)
+		
+		for i,j in self.Members.items():
+			model.add_member(i,j["start_node"].get(),j["end_node"].get(),"Steel",10, 15, 25, 2)
+			model.def_releases(i,Rzi=self.releases[j["release"].get()][0],Rzj=self.releases[j["release"].get()][1])
+		
+		for i in self.Supports.values():
+			model.def_support(i["Node"].get(),self.free[i["Rx"].get()],self.free[i["Ry"].get()],1,1,1,self.free[i["Mz"].get()])
+		
+		for i in self.Ploads.values():
+			model.add_member_pt_load(i["Member"].get(),i["Direction"].get(),i["P"].get(),i["X"].get())
+		
+		for i in self.Dloads.values():
+			model.add_member_dist_load(i["Member"].get(),i["Direction"].get(),i["W1"].get(),i["W2"].get(),i["X1"].get(),i["X2"].get())
+		
+		model.analyze()
+		
+		for i in self.Members.keys():
+			model.Members[i].plot_moment('Mz')
 
 if __name__ == '__main__':
 	App = App()
