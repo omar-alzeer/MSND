@@ -16,7 +16,12 @@ class App(Tk):
 			"Loads" : {
 				"Pload":{},
 				"Dload":{}
-			}
+			},
+			"materials":{
+				"concrete":{},
+				"steel":{}
+			},
+			"sections":{}
 		}
 		Nodes = self.inputs["Nodes"]
 		Members = self.inputs["Members"]
@@ -50,6 +55,11 @@ class App(Tk):
 		self.run.add_command(label="analyze",command=self.analyze)
 		self.menu.add_cascade(label="Run", menu=self.run)
 
+		self.define = Menu(self.menu,tearoff=False)
+		self.define.add_command(label="materials",command=self.materials)
+		self.define.add_command(label="sections",command=self.sections)
+		self.menu.add_cascade(label="Define", menu=self.define)
+
 		self.help = Menu(self.menu,tearoff=False)
 		self.help.add_command(label="About")
 		self.menu.add_cascade(label="Help", menu=self.help)
@@ -69,8 +79,8 @@ class App(Tk):
 		self.Nodes_widgets = [
 			[
 				None,
-				Label(self.p1,text="X"),
-				Label(self.p1,text="Y")
+				Label(self.p1,text="X (m)"),
+				Label(self.p1,text="Y (m)")
 			]
 		]
 		
@@ -104,8 +114,8 @@ class App(Tk):
 				None,
 				Label(self.p4,text="Member"),
 				Label(self.p4,text="Direction"),
-				Label(self.p4,text="P"),
-				Label(self.p4,text="X")
+				Label(self.p4,text="P (kN)"),
+				Label(self.p4,text="X (m)")
 			]
 		]
 
@@ -116,10 +126,10 @@ class App(Tk):
 				None,
 				Label(self.p5,text="Member"),
 				Label(self.p5,text="Direction"),
-				Label(self.p5,text="W1"),
-				Label(self.p5,text="W2"),
-				Label(self.p5,text="X1"),
-				Label(self.p5,text="X2")
+				Label(self.p5,text="W1 (kN)"),
+				Label(self.p5,text="W2 (kN)"),
+				Label(self.p5,text="X1 (m)"),
+				Label(self.p5,text="X2 (m)")
 			]
 		]
 		
@@ -206,9 +216,9 @@ class App(Tk):
 		})
 		self.Members_widgets.append([
 			Label(self.p2,text=f"M{self.member_number}",width=4),
-			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["start_node"],width=6),
-			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["end_node"],width=6),
-			ttk.Combobox(self.p2,values=("Start","End","Both","Unreleased"),textvariable=self.Members[f"M{self.member_number}"]["release"],width=6)
+			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["start_node"],width=6,state="readonly"),
+			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["end_node"],width=6,state="readonly"),
+			ttk.Combobox(self.p2,values=("Start","End","Both","Unreleased"),textvariable=self.Members[f"M{self.member_number}"]["release"],width=6,state="readonly")
 		])
 		self.update_members_list(self.Pload_widgets,self.Members)
 	
@@ -275,6 +285,59 @@ class App(Tk):
 	def update_members_list(self,widgets_list,var_dict):
 		for i in range(1,len(widgets_list)):
 			widgets_list[i][1]["values"]=list(var_dict.keys())
+
+	def materials(self):
+		material = Toplevel(self)
+		material.grab_set()
+
+		main_frame = Frame(material)
+		main_frame.pack(padx=10,expand=1,fill="both")
+
+		group_gen_frame = Pmw.Group(main_frame,tag_text="general")
+		group_prop_frame = Pmw.Group(main_frame,tag_text="material properties")
+		
+		gen_frame = Frame(group_gen_frame.interior())
+		prop_frame = Frame(group_prop_frame.interior())
+		
+		group_gen_frame.pack(expand=YES,fill="both",anchor=CENTER)
+		group_prop_frame.pack(expand=YES,fill="both",anchor=CENTER)
+		
+		gen_frame.pack(padx=30,pady=15,expand=YES,fill="x")
+		prop_frame.pack(padx=30,pady=15,expand=YES,fill="x")
+
+		button_frame = Frame(main_frame)
+		button_frame.pack(pady=10,fill="x")
+		
+		OK = ttk.Button(button_frame,text="OK",width=7)
+		OK.pack()
+
+		gen_widgets = (
+			(Label(gen_frame,text="Material's name:"),ttk.Entry(gen_frame,width=10)),
+			(Label(gen_frame,text="Material's type:"),ttk.Combobox(gen_frame,width=9))
+		)
+
+		properties_widgets = (
+			(Label(prop_frame,text="elasticity modulus:"),ttk.Entry(prop_frame,width=10)),
+			(Label(prop_frame,text="shear modulus:"),ttk.Entry(prop_frame,width=10)),
+			(Label(prop_frame,text="poisson modulus:"),ttk.Entry(prop_frame,width=10)),
+			(Label(prop_frame,text="volumetric weight:"),ttk.Entry(prop_frame,width=10))
+		)
+		
+		gen_frame.grid_columnconfigure(0, weight = 1)
+		gen_frame.grid_columnconfigure(1, weight = 1)
+		prop_frame.grid_columnconfigure(0, weight = 1)
+		prop_frame.grid_columnconfigure(1, weight = 1)
+
+		for i,j in enumerate(gen_widgets):
+			j[0].grid(row=i,column=0,sticky="W")
+			j[1].grid(row=i,column=1,sticky="E")
+
+		for i,j in enumerate(properties_widgets):
+			j[0].grid(row=i,column=0,sticky="W")
+			j[1].grid(row=i,column=1,sticky="E")
+
+	def sections(self):
+		pass
 		
 	def analyze(self):
 		model = FEModel3D()
@@ -299,8 +362,8 @@ class App(Tk):
 		model.analyze()
 		
 		for i in self.Members.keys():
-			model.Members[i].plot_moment('Mz')
+			model.Members[i].plot_moment("Mz",n_points=1000)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 	App = App()
 	App.mainloop()
