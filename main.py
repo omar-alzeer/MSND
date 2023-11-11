@@ -7,7 +7,7 @@ class App(Tk):
 	def __init__(self):
 		Tk.__init__(self)
 
-		self.geometry("430x285")
+		#self.geometry("430x285")
 
 		self.inputs = {
 			"Nodes" : {},
@@ -17,17 +17,28 @@ class App(Tk):
 				"Pload":{},
 				"Dload":{}
 			},
-			"materials":{
-				"concrete":{},
-				"steel":{}
+			"Materials":{
+				"concrete":{
+					"E":3.2836e+7,
+					"G":13681666.667,
+					"P":0.2,
+					"W":25
+				},
+				"steel":{
+					"E":2.1e+8,
+					"G":80769230.769,
+					"P":0.3,
+					"W":76.98
+				}
 			},
-			"sections":{}
+			"Sections":{
+				"default":{
+					"material":"concrete",
+					"Iz":0.00208,
+					"A":0.1
+				}
+			}
 		}
-		Nodes = self.inputs["Nodes"]
-		Members = self.inputs["Members"]
-		Supports = self.inputs["Supports"]
-		Ploads = self.inputs["Loads"]["Pload"]
-		Dloads = self.inputs["Loads"]["Dload"]
 		
 		self.free = {
 			"Fixed":True,
@@ -38,7 +49,7 @@ class App(Tk):
 			"Start":(True,False),
 			"End":(False,True),
 			"Both":(True,True),
-			"Unreleased":(False,False)
+			"Unrelease":(False,False)
 		}
 
 		self.Nodes = self.inputs["Nodes"]
@@ -46,6 +57,8 @@ class App(Tk):
 		self.Supports = self.inputs["Supports"]
 		self.Ploads = self.inputs["Loads"]["Pload"]
 		self.Dloads = self.inputs["Loads"]["Dload"]
+		self.Materials = self.inputs["Materials"]
+		self.Sections = self.inputs["Sections"]
 		
 		#Menu widget
 		self.menu = Menu(self,tearoff=False)
@@ -91,7 +104,9 @@ class App(Tk):
 				None,
 				Label(self.p2,text="Start"),
 				Label(self.p2,text="End"),
-				Label(self.p2,text="Release")
+				Label(self.p2,text="Release"),
+				Label(self.p2,text="Section"),
+				Label(self.p2,text="I-mod")
 			]
 		]
 		
@@ -204,23 +219,27 @@ class App(Tk):
 			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number}"]["Y"],width=9)
 		])
 		self.update_nodes_list()
-		self.update_members_list(self.Supports_widgets,self.Nodes)
+		self.update_members_list(self.Supports_widgets,self.Nodes,1)
   
 	def add_member_row(self):
 		self.Members.update({
 			f"M{self.member_number}":{
 				"start_node":StringVar(),
 				"end_node":StringVar(),
-				"release":StringVar(value="Unrelease")
+				"release":StringVar(value="Unrelease"),
+				"section":StringVar(value="default"),
+				"modifier":IntVar()
 			}
 		})
 		self.Members_widgets.append([
 			Label(self.p2,text=f"M{self.member_number}",width=4),
 			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["start_node"],width=6,state="readonly"),
 			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["end_node"],width=6,state="readonly"),
-			ttk.Combobox(self.p2,values=("Start","End","Both","Unrelease"),textvariable=self.Members[f"M{self.member_number}"]["release"],width=9,state="readonly")
+			ttk.Combobox(self.p2,values=("Start","End","Both","Unrelease"),textvariable=self.Members[f"M{self.member_number}"]["release"],width=9,state="readonly"),
+			ttk.Combobox(self.p2,values=list(self.Sections.keys()),textvariable=self.Members[f"M{self.member_number}"]["section"],width=6,state="readonly"),
+			ttk.Entry(self.p2,textvariable=self.Members[f"M{self.member_number}"]["modifier"],width=9)
 		])
-		self.update_members_list(self.Pload_widgets,self.Members)
+		self.update_members_list(self.Pload_widgets,self.Members,1)
 	
 	def add_support_row(self):
 		self.Supports.update({
@@ -282,13 +301,30 @@ class App(Tk):
 			for j in range(1,3):
 				self.Members_widgets[i][j]["values"]=list(self.Nodes.keys())
 	
-	def update_members_list(self,widgets_list,var_dict):
+	def update_members_list(self,widgets_list,var_dict,widget_num):
 		for i in range(1,len(widgets_list)):
-			widgets_list[i][1]["values"]=list(var_dict.keys())
+			widgets_list[i][widget_num]["values"]=list(var_dict.keys())
 
 	def materials(self):
+		def materials_ok():
+			self.Materials.update({
+				gen_widgets[0][1].get():{
+					"E":properties_widgets[0][1].get(),
+					"G":properties_widgets[1][1].get(),
+					"P":properties_widgets[2][1].get(),
+					"W":properties_widgets[3][1].get()
+				}
+			})
+			gen_widgets[0][1]["values"] = list(self.Materials.keys())
+		
+		def materials_set(event):
+			for i,j in enumerate(properties_widgets):
+				j[1].delete(0,END)
+				j[1].insert(0,list(self.Materials[gen_widgets[0][1].get()].values())[i])
+				
+			
 		material = Toplevel(self)
-		material.geometry("400x260")
+		#material.geometry("400x260")
 		material.grab_set()
 
 
@@ -310,11 +346,11 @@ class App(Tk):
 		button_frame = Frame(main_frame)
 		button_frame.pack(pady=10,fill="x")
 		
-		OK = ttk.Button(button_frame,text="OK",width=7)
+		OK = ttk.Button(button_frame,text="OK",width=7,command=materials_ok)
 		OK.pack()
 
 		gen_widgets = (
-			(Label(gen_frame,text="Material's name:"),ttk.Combobox(gen_frame,width=9)),
+			(Label(gen_frame,text="Material's name:"),ttk.Combobox(gen_frame,width=9,values=list(self.Materials.keys()))),
 		)
 
 		properties_widgets = (
@@ -336,10 +372,28 @@ class App(Tk):
 		for i,j in enumerate(properties_widgets):
 			j[0].grid(row=i,column=0,sticky="W")
 			j[1].grid(row=i,column=1,sticky="E")
-
+			
+		gen_widgets[0][1].bind("<<ComboboxSelected>>",materials_set)
+	
 	def sections(self):
+		def sections_ok():
+			self.Sections.update({
+				gen_widgets[0][1].get():{
+					"material":properties_widgets[0][1].get(),
+					"Iz":properties_widgets[1][1].get(),
+					"A":properties_widgets[2][1].get()
+				}
+			})
+			gen_widgets[0][1]["values"] = list(self.Sections.keys())
+			self.update_members_list(self.Members_widgets,self.Sections,4)
+		
+		def sections_set(event):
+			for i,j in enumerate(properties_widgets):
+				j[1].delete(0,END)
+				j[1].insert(0,list(self.Sections[gen_widgets[0][1].get()].values())[i])
+		
 		section = Toplevel(self)
-		section.geometry("400x260")
+		#section.geometry("400x260")
 		section.grab_set()
 
 
@@ -361,15 +415,15 @@ class App(Tk):
 		button_frame = Frame(main_frame)
 		button_frame.pack(pady=10,fill="x")
 
-		OK = ttk.Button(button_frame,text="OK",width=7)
+		OK = ttk.Button(button_frame,text="OK",width=7,command=sections_ok)
 		OK.pack()
 
 		gen_widgets = (
-			(Label(gen_frame,text="Section's name:"),ttk.Combobox(gen_frame,width=9)),
+			(Label(gen_frame,text="Section's name:"),ttk.Combobox(gen_frame,values=list(self.Sections.keys()),width=9)),
 		)
 
 		properties_widgets = (
-			(Label(prop_frame,text="Section's material:"),ttk.Combobox(prop_frame,width=9,state="readonly")),
+			(Label(prop_frame,text="Section's material:"),ttk.Combobox(prop_frame,width=9,values=list(self.Materials.keys()))),
 			(Label(prop_frame,text="Moment of inertia:"),ttk.Entry(prop_frame,width=12)),
 			(Label(prop_frame,text="Area of section:"),ttk.Entry(prop_frame,width=12)),
 		)
@@ -386,31 +440,65 @@ class App(Tk):
 		for i,j in enumerate(properties_widgets):
 			j[0].grid(row=i,column=0,sticky="W")
 			j[1].grid(row=i,column=1,sticky="E")
+			
+		gen_widgets[0][1].bind("<<ComboboxSelected>>",sections_set)
 		
 	def analyze(self):
 		model = FEModel3D()
-		model.add_material("Steel",29000,11200,0.3,2.836e-4)
 		
-		for i,j in self.Nodes.items():
-			model.add_node(i,j["X"].get(),j["Y"].get(),0)
+		for name,j in self.Materials.items():
+			model.add_material(
+				name,
+				float(j["E"]),
+				float(j["G"]),
+				float(j["P"]),
+				float(j["W"]))
 		
+		for name,j in self.Nodes.items():
+			model.add_node(
+				name,
+				j["X"].get(),
+				j["Y"].get(),0)
+			
 		for i,j in self.Members.items():
-			model.add_member(i,j["start_node"].get(),j["end_node"].get(),"Steel",10, 15, 25, 2)
-			model.def_releases(i,Rzi=self.releases[j["release"].get()][0],Rzj=self.releases[j["release"].get()][1])
+			model.add_member(
+				i,
+				j["start_node"].get(),
+				j["end_node"].get(),
+				self.Sections[j["section"].get()]["material"],1,
+				j["modifier"].get()*float(self.Sections[j["section"].get()]["Iz"]),1,
+				float(self.Sections[j["section"].get()]["A"]))
+				
+			model.def_releases(
+				i,
+				Rzi=self.releases[j["release"].get()][0],
+				Rzj=self.releases[j["release"].get()][1])
 		
 		for i in self.Supports.values():
-			model.def_support(i["Node"].get(),self.free[i["Rx"].get()],self.free[i["Ry"].get()],1,1,1,self.free[i["Mz"].get()])
+			model.def_support(
+				i["Node"].get(),
+				self.free[i["Rx"].get()],
+				self.free[i["Ry"].get()],1,1,1,
+				self.free[i["Mz"].get()])
 		
 		for i in self.Ploads.values():
-			model.add_member_pt_load(i["Member"].get(),i["Direction"].get(),i["P"].get(),i["X"].get())
+			model.add_member_pt_load(
+				i["Member"].get(),
+				i["Direction"].get(),
+				i["P"].get(),i["X"].get())
 		
 		for i in self.Dloads.values():
-			model.add_member_dist_load(i["Member"].get(),i["Direction"].get(),i["W1"].get(),i["W2"].get(),i["X1"].get(),i["X2"].get())
+			model.add_member_dist_load(
+				i["Member"].get(),
+				i["Direction"].get(),
+				i["W1"].get(),i["W2"].get(),
+				i["X1"].get(),i["X2"].get())
 		
 		model.analyze()
 		
 		for i in self.Members.keys():
 			model.Members[i].plot_moment("Mz",n_points=1000)
+		
 
 if __name__ == "__main__":
 	App = App()
