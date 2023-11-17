@@ -7,7 +7,7 @@ class App(Tk):
 	def __init__(self):
 		Tk.__init__(self)
 
-		#self.geometry("430x285")
+		self.geometry("430x285")
 
 		self.inputs = {
 			"Nodes" : {},
@@ -65,7 +65,11 @@ class App(Tk):
 		self.config(menu=self.menu)
 		
 		self.run = Menu(self.menu,tearoff=False)
-		self.run.add_command(label="analyze",command=self.analyze)
+		self.run.add_command(label="Bending",command=lambda : self.analyze("BM"))
+		self.run.add_command(label="Shear",command=lambda : self.analyze("SF"))
+		self.run.add_command(label="Normal",command=lambda : self.analyze("NF"))
+		self.run.add_command(label="Deflection",command=lambda : self.analyze("D"))
+		self.run.add_command(label="Reactions",command=lambda : self.analyze("R"))
 		self.menu.add_cascade(label="Run", menu=self.run)
 
 		self.define = Menu(self.menu,tearoff=False)
@@ -228,7 +232,7 @@ class App(Tk):
 				"end_node":StringVar(),
 				"release":StringVar(value="Unrelease"),
 				"section":StringVar(value="default"),
-				"modifier":IntVar()
+				"modifier":IntVar(value=1)
 			}
 		})
 		self.Members_widgets.append([
@@ -240,14 +244,15 @@ class App(Tk):
 			ttk.Entry(self.p2,textvariable=self.Members[f"M{self.member_number}"]["modifier"],width=9)
 		])
 		self.update_members_list(self.Pload_widgets,self.Members,1)
+		self.update_members_list(self.Dload_widgets,self.Members,1)
 	
 	def add_support_row(self):
 		self.Supports.update({
 			f"S{self.support_number}":{
 				"Node":StringVar(),
-				"Rx":StringVar(value="Free"),
-				"Ry":StringVar(value="Free"),
-				"Mz":StringVar(value="Free")
+				"Rx":StringVar(value="Fixed"),
+				"Ry":StringVar(value="Fixed"),
+				"Mz":StringVar(value="Fixed")
 			}
 		})
 		self.Supports_widgets.append([
@@ -304,6 +309,9 @@ class App(Tk):
 	def update_members_list(self,widgets_list,var_dict,widget_num):
 		for i in range(1,len(widgets_list)):
 			widgets_list[i][widget_num]["values"]=list(var_dict.keys())
+	
+	def delete(self,widgets_list):
+		pass
 
 	def materials(self):
 		def materials_ok():
@@ -324,7 +332,7 @@ class App(Tk):
 				
 			
 		material = Toplevel(self)
-		#material.geometry("400x260")
+		material.geometry("400x260")
 		material.grab_set()
 
 
@@ -393,7 +401,7 @@ class App(Tk):
 				j[1].insert(0,list(self.Sections[gen_widgets[0][1].get()].values())[i])
 		
 		section = Toplevel(self)
-		#section.geometry("400x260")
+		section.geometry("400x260")
 		section.grab_set()
 
 
@@ -442,8 +450,30 @@ class App(Tk):
 			j[1].grid(row=i,column=1,sticky="E")
 			
 		gen_widgets[0][1].bind("<<ComboboxSelected>>",sections_set)
+	
+	def reactions(self,nodes,model):
+		reaction = Toplevel(self)
+		reaction.grab_set()
 		
-	def analyze(self):
+		widgets = [
+			[
+				None,
+				Label(reaction,text="Rx"),
+				Label(reaction,text="Ry"),
+				Label(reaction,text="Mz")
+			]
+		]
+		
+		for i in nodes:
+			widgets.append([
+				Label(reaction,text=i,width=4),
+				Label(reaction,text=round(model.Nodes[i].RxnFX["Combo 1"],3),bg="white",borderwidth=2,relief="solid",width=9),
+				Label(reaction,text=round(model.Nodes[i].RxnFY["Combo 1"],3),bg="white",borderwidth=2,relief="solid",width=9),
+				Label(reaction,text=round(model.Nodes[i].RxnMZ["Combo 1"],3),bg="white",borderwidth=2,relief="solid",width=9)
+			])
+		self.deploy_widgets(widgets)
+		
+	def analyze(self,internal_force):
 		model = FEModel3D()
 		
 		for name,j in self.Materials.items():
@@ -486,19 +516,34 @@ class App(Tk):
 				i["Member"].get(),
 				i["Direction"].get(),
 				i["P"].get(),i["X"].get())
-		
-		for i in self.Dloads.values():
-			model.add_member_dist_load(
-				i["Member"].get(),
+				
+		for i in self.Dloads.values():			  
+			model.add_member_dist_load(		     
+				i["Member"].get(),				 
 				i["Direction"].get(),
 				i["W1"].get(),i["W2"].get(),
 				i["X1"].get(),i["X2"].get())
 		
 		model.analyze()
 		
-		for i in self.Members.keys():
-			model.Members[i].plot_moment("Mz",n_points=1000)
+		if internal_force == "BM":
+			for i in self.Members.keys():
+				model.Members[i].plot_moment("Mz",n_points=1000)
+				
+		elif internal_force == "SF":
+			for i in self.Members.keys():
+				model.Members[i].plot_shear("Fy",n_points=1000)
 		
+		elif internal_force == "NF":
+			for i in self.Members.keys():
+				model.Members[i].plot_axial(n_points=1000)
+		
+		elif internal_force == "D":
+			for i in self.Members.keys():
+				model.Members[i].plot_deflection("dy",n_points=1000)
+		
+		elif internal_force == "R":
+			self.reactions(self.Nodes.keys(),model)
 
 if __name__ == "__main__":
 	App = App()
