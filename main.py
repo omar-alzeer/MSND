@@ -8,6 +8,7 @@ class App(Tk):
 		Tk.__init__(self)
 
 		self.geometry("430x285")
+		self.title("MSND")
 
 		self.inputs = {
 			"Nodes" : {},
@@ -92,7 +93,7 @@ class App(Tk):
 		self.notebook.pack(fill="both",expand=True,padx=10,pady=10)
 		
 		# Nodes page attributes
-		self.node_number = 1
+		self.node_number = [0]
 		self.Nodes_widgets = [
 			[
 				None,
@@ -102,7 +103,7 @@ class App(Tk):
 		]
 		
 		# Members page attributes
-		self.member_number = 1
+		self.member_number = [0]
 		self.Members_widgets = [
 			[
 				None,
@@ -115,7 +116,7 @@ class App(Tk):
 		]
 		
 		# Supports page attributes
-		self.support_number = 1
+		self.support_number = [0]
 		self.Supports_widgets = [
 			[
 				None,
@@ -127,7 +128,7 @@ class App(Tk):
 		]
 		
 		# point_load page attributes
-		self.Pload_number = 0
+		self.Pload_number = [0]
 		self.Pload_widgets = [
 			[
 				None,
@@ -139,7 +140,7 @@ class App(Tk):
 		]
 
 		# dist_load page attributes
-		self.Dload_number = 0
+		self.Dload_number = [0]
 		self.Dload_widgets = [
 			[
 				None,
@@ -153,30 +154,40 @@ class App(Tk):
 		]
 		
 		#widgets of Nodes page
+		self.add_node_button= ttk.Button(self.p1,text="add",command=self.add_node,width=7)
+		self.del_node_button= ttk.Button(self.p1,text="delete",command=lambda:self.delete_widgets_row(self.Nodes_widgets,2,self.node_number,self.Nodes),width=7)
+		self.add_node_button.place(relx=0.9,rely=0.9,anchor=CENTER)
+		self.del_node_button.place(relx=0.75,rely=0.9,anchor=CENTER)
 		self.add_node_row()
 		self.deploy_widgets(self.Nodes_widgets)  
-		self.add_node_button= ttk.Button(self.p1,text="add",command=self.add_node,width=7)
-		self.add_node_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		
 		# widgets of Members page
+		self.add_member_button= ttk.Button(self.p2,text="add",command=self.add_member,width=7)
+		self.del_member_button= ttk.Button(self.p2,text="delete",command=lambda:self.delete_widgets_row(self.Members_widgets,2,self.member_number,self.Members),width=7)
+		self.add_member_button.place(relx=0.9,rely=0.9,anchor=CENTER)
+		self.del_member_button.place(relx=0.75,rely=0.9,anchor=CENTER)
 		self.add_member_row()
 		self.deploy_widgets(self.Members_widgets)  
-		self.add_member_button= ttk.Button(self.p2,text="add",command=self.add_member,width=7)
-		self.add_member_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		
 		# widgets of Supports page
+		self.add_support_button= ttk.Button(self.p3,text="add",command=self.add_support,width=7)
+		self.del_support_button= ttk.Button(self.p3,text="delete",command=lambda:self.delete_widgets_row(self.Supports_widgets,2,self.support_number,self.Supports),width=7)
+		self.add_support_button.place(relx=0.9,rely=0.9,anchor=CENTER)
+		self.del_support_button.place(relx=0.75,rely=0.9,anchor=CENTER)
 		self.add_support_row()
 		self.deploy_widgets(self.Supports_widgets)
-		self.add_support_button= ttk.Button(self.p3,text="add",command=self.add_support,width=7)
-		self.add_support_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		
 		# widgets of point_load
 		self.add_Pload_button= ttk.Button(self.p4,text="add",command=self.add_Pload,width=7)
+		self.del_Pload_button= ttk.Button(self.p4,text="delete",command=lambda:self.delete_widgets_row(self.Pload_widgets,1,self.Pload_number,self.Ploads),width=7)
 		self.add_Pload_button.place(relx=0.9,rely=0.9,anchor=CENTER)
+		self.del_Pload_button.place(relx=0.75,rely=0.9,anchor=CENTER)
 		
 		# widgets of dist_load
 		self.add_Dload_button= ttk.Button(self.p5,text="add",command=self.add_Dload,width=7)
+		self.del_Dload_button= ttk.Button(self.p5,text="delete",command=lambda:self.delete_widgets_row(self.Dload_widgets,1,self.Dload_number,self.Dloads),width=7)
 		self.add_Dload_button.place(relx=0.9,rely=0.9,anchor=CENTER)
+		self.del_Dload_button.place(relx=0.75,rely=0.9,anchor=CENTER)
 	
 	def deploy_widgets(self,widgets_list):
 		for row,widgets in enumerate(widgets_list):
@@ -186,48 +197,45 @@ class App(Tk):
 				widget.grid(row=row,column=column)
         
 	def add_node(self):
-		self.node_number= self.node_number + 1
 		self.add_node_row()
 		self.deploy_widgets(self.Nodes_widgets)
 	
 	def add_member(self):
-		self.member_number= self.member_number + 1
 		self.add_member_row()
 		self.deploy_widgets(self.Members_widgets)
 	
 	def add_support(self):
-		self.support_number = self.support_number + 1
 		self.add_support_row()
 		self.deploy_widgets(self.Supports_widgets)
 	
 	def add_Pload(self):
-		self.Pload_number= self.Pload_number + 1
 		self.add_Pload_row()
 		self.deploy_widgets(self.Pload_widgets)
 		
 	def add_Dload(self):
-		self.Dload_number= self.Dload_number + 1
 		self.add_Dload_row()
 		self.deploy_widgets(self.Dload_widgets)
 	
 	def add_node_row(self):
+		self.node_number.append(self.node_number[-1]+1)
 		self.Nodes.update({
-			f"N{self.node_number}":{
+			f"N{self.node_number[-1]}":{
 				"X":DoubleVar(),
 				"Y":DoubleVar()
 			}
 		})
 		self.Nodes_widgets.append([
-			Label(self.p1,text=f"N{self.node_number}",width=4),
-			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number}"]["X"],width=9),
-			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number}"]["Y"],width=9)
+			Label(self.p1,text=f"N{self.node_number[-1]}",width=4),
+			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number[-1]}"]["X"],width=9),
+			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number[-1]}"]["Y"],width=9)
 		])
 		self.update_nodes_list()
 		self.update_members_list(self.Supports_widgets,self.Nodes,1)
   
 	def add_member_row(self):
+		self.member_number.append(self.member_number[-1]+1)
 		self.Members.update({
-			f"M{self.member_number}":{
+			f"M{self.member_number[-1]}":{
 				"start_node":StringVar(),
 				"end_node":StringVar(),
 				"release":StringVar(value="Unrelease"),
@@ -236,19 +244,20 @@ class App(Tk):
 			}
 		})
 		self.Members_widgets.append([
-			Label(self.p2,text=f"M{self.member_number}",width=4),
-			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["start_node"],width=6,state="readonly"),
-			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number}"]["end_node"],width=6,state="readonly"),
-			ttk.Combobox(self.p2,values=("Start","End","Both","Unrelease"),textvariable=self.Members[f"M{self.member_number}"]["release"],width=9,state="readonly"),
-			ttk.Combobox(self.p2,values=list(self.Sections.keys()),textvariable=self.Members[f"M{self.member_number}"]["section"],width=6,state="readonly"),
-			ttk.Entry(self.p2,textvariable=self.Members[f"M{self.member_number}"]["modifier"],width=9)
+			Label(self.p2,text=f"M{self.member_number[-1]}",width=4),
+			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number[-1]}"]["start_node"],width=6,state="readonly"),
+			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number[-1]}"]["end_node"],width=6,state="readonly"),
+			ttk.Combobox(self.p2,values=("Start","End","Both","Unrelease"),textvariable=self.Members[f"M{self.member_number[-1]}"]["release"],width=9,state="readonly"),
+			ttk.Combobox(self.p2,values=list(self.Sections.keys()),textvariable=self.Members[f"M{self.member_number[-1]}"]["section"],width=6,state="readonly"),
+			ttk.Entry(self.p2,textvariable=self.Members[f"M{self.member_number[-1]}"]["modifier"],width=9)
 		])
 		self.update_members_list(self.Pload_widgets,self.Members,1)
 		self.update_members_list(self.Dload_widgets,self.Members,1)
 	
 	def add_support_row(self):
+		self.support_number.append(self.support_number[-1]+1)
 		self.Supports.update({
-			f"S{self.support_number}":{
+			f"S{self.support_number[-1]}":{
 				"Node":StringVar(),
 				"Rx":StringVar(value="Fixed"),
 				"Ry":StringVar(value="Fixed"),
@@ -256,16 +265,17 @@ class App(Tk):
 			}
 		})
 		self.Supports_widgets.append([
-	     	Label(self.p3,text=f"S{self.support_number}",width=4),
-	     	ttk.Combobox(self.p3,values=list(self.Nodes.keys()),textvariable=self.Supports[f"S{self.support_number}"]["Node"],width=6,state="readonly"),
-	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number}"]["Rx"],width=6,state="readonly"),
-	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number}"]["Ry"],width=6,state="readonly"),
-	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number}"]["Mz"],width=6,state="readonly")
+	     	Label(self.p3,text=f"S{self.support_number[-1]}",width=4),
+	     	ttk.Combobox(self.p3,values=list(self.Nodes.keys()),textvariable=self.Supports[f"S{self.support_number[-1]}"]["Node"],width=6,state="readonly"),
+	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number[-1]}"]["Rx"],width=6,state="readonly"),
+	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number[-1]}"]["Ry"],width=6,state="readonly"),
+	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number[-1]}"]["Mz"],width=6,state="readonly")
 	     ])
 	
 	def add_Pload_row(self):
+		self.Pload_number.append(self.Pload_number[-1]+1)
 		self.Ploads.update({
-			f"PL{self.Pload_number}":{
+			f"PL{self.Pload_number[-1]}":{
 				"Member":StringVar(),
 				"Direction":StringVar(value="Fy"),
 				"P":DoubleVar(),
@@ -273,16 +283,17 @@ class App(Tk):
 			}
 		})
 		self.Pload_widgets.append([
-			Label(self.p4,text=f"PL{self.Pload_number}",width=4),
-			ttk.Combobox(self.p4,values=list(self.Members.keys()),textvariable=self.Ploads[f"PL{self.Pload_number}"]["Member"],width=6,state="readonly"),
-			ttk.Combobox(self.p4,values=("Fy","Fx","Mz"),textvariable=self.Ploads[f"PL{self.Pload_number}"]["Direction"],width=6,state="readonly"),
-			ttk.Entry(self.p4,textvariable=self.Ploads[f"PL{self.Pload_number}"]["P"],width=9),
-			ttk.Entry(self.p4,textvariable=self.Ploads[f"PL{self.Pload_number}"]["X"],width=9)
+			Label(self.p4,text=f"PL{self.Pload_number[-1]}",width=4),
+			ttk.Combobox(self.p4,values=list(self.Members.keys()),textvariable=self.Ploads[f"PL{self.Pload_number[-1]}"]["Member"],width=6,state="readonly"),
+			ttk.Combobox(self.p4,values=("Fy","Fx","Mz"),textvariable=self.Ploads[f"PL{self.Pload_number[-1]}"]["Direction"],width=6,state="readonly"),
+			ttk.Entry(self.p4,textvariable=self.Ploads[f"PL{self.Pload_number[-1]}"]["P"],width=9),
+			ttk.Entry(self.p4,textvariable=self.Ploads[f"PL{self.Pload_number[-1]}"]["X"],width=9)
 		])
 	
 	def add_Dload_row(self):
+		self.Dload_number.append(self.Dload_number[-1]+1)
 		self.Dloads.update({
-			f"DL{self.Dload_number}":{
+			f"DL{self.Dload_number[-1]}":{
 				"Member":StringVar(),
 				"Direction":StringVar(value="Fy"),
 				"W1":DoubleVar(),
@@ -292,14 +303,27 @@ class App(Tk):
 			}
 		})
 		self.Dload_widgets.append([
-			Label(self.p5,text=f"DL{self.Dload_number}",width=4),
-			ttk.Combobox(self.p5,values=list(self.Members),textvariable=self.Dloads[f"DL{self.Dload_number}"]["Member"],width=6,state="readonly"),
-			ttk.Combobox(self.p5,values=("Fx","Fy"),textvariable=self.Dloads[f"DL{self.Dload_number}"]["Direction"],width=6,state="readonly"),
-			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number}"]["W1"],width=9),
-			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number}"]["W2"],width=9),
-			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number}"]["X1"],width=9),
-			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number}"]["X2"],width=9)
+			Label(self.p5,text=f"DL{self.Dload_number[-1]}",width=4),
+			ttk.Combobox(self.p5,values=list(self.Members),textvariable=self.Dloads[f"DL{self.Dload_number[-1]}"]["Member"],width=6,state="readonly"),
+			ttk.Combobox(self.p5,values=("Fx","Fy"),textvariable=self.Dloads[f"DL{self.Dload_number[-1]}"]["Direction"],width=6,state="readonly"),
+			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number[-1]}"]["W1"],width=9),
+			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number[-1]}"]["W2"],width=9),
+			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number[-1]}"]["X1"],width=9),
+			ttk.Entry(self.p5,textvariable=self.Dloads[f"DL{self.Dload_number[-1]}"]["X2"],width=9)
 		])
+
+	def delete_widgets_row(self,widgets_list,list_num,widget_number,input):
+		if len(widgets_list) > list_num:
+			for i in widgets_list[-1]:
+				i.destroy()
+			widget_number.pop()
+			widgets_list.pop()
+			input.popitem()
+
+			if len(widgets_list) == 1:
+				for i in widgets_list[-1]:
+					if i == None : continue
+					i.grid_remove()
 
 	def update_nodes_list(self):
 		for i in range(1,len(self.Members_widgets)):
@@ -309,9 +333,6 @@ class App(Tk):
 	def update_members_list(self,widgets_list,var_dict,widget_num):
 		for i in range(1,len(widgets_list)):
 			widgets_list[i][widget_num]["values"]=list(var_dict.keys())
-	
-	def delete(self,widgets_list):
-		pass
 
 	def materials(self):
 		def materials_ok():
@@ -333,6 +354,7 @@ class App(Tk):
 			
 		material = Toplevel(self)
 		material.geometry("400x260")
+		material.title("Materials")
 		material.grab_set()
 
 
@@ -402,6 +424,7 @@ class App(Tk):
 		
 		section = Toplevel(self)
 		section.geometry("400x260")
+		section.title("Sections")
 		section.grab_set()
 
 
@@ -453,6 +476,7 @@ class App(Tk):
 	
 	def reactions(self,nodes,model):
 		reaction = Toplevel(self)
+		reaction.title("Reactions")
 		reaction.grab_set()
 		
 		widgets = [
@@ -467,9 +491,9 @@ class App(Tk):
 		for i in nodes:
 			widgets.append([
 				Label(reaction,text=i,width=4),
-				Label(reaction,text=round(model.Nodes[i].RxnFX["Combo 1"],3),bg="white",borderwidth=2,relief="solid",width=9),
-				Label(reaction,text=round(model.Nodes[i].RxnFY["Combo 1"],3),bg="white",borderwidth=2,relief="solid",width=9),
-				Label(reaction,text=round(model.Nodes[i].RxnMZ["Combo 1"],3),bg="white",borderwidth=2,relief="solid",width=9)
+				Label(reaction,text=round(model.Nodes[i].RxnFX["Combo 1"],3),bg="white",borderwidth=1,relief="solid",width=9),
+				Label(reaction,text=round(model.Nodes[i].RxnFY["Combo 1"],3),bg="white",borderwidth=1,relief="solid",width=9),
+				Label(reaction,text=round(model.Nodes[i].RxnMZ["Combo 1"],3),bg="white",borderwidth=1,relief="solid",width=9)
 			])
 		self.deploy_widgets(widgets)
 		
