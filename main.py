@@ -61,6 +61,9 @@ class App(Tk):
 		self.Materials = self.inputs["Materials"]
 		self.Sections = self.inputs["Sections"]
 		
+		self.nodes_id = {}
+		self.nodes_var = []
+		
 		#Menu widget
 		self.menu = Menu(self,tearoff=False)
 		self.config(menu=self.menu)
@@ -81,7 +84,10 @@ class App(Tk):
 		self.help = Menu(self.menu,tearoff=False)
 		self.help.add_command(label="About")
 		self.menu.add_cascade(label="Help", menu=self.help)
-
+		
+		#Canvas
+		self.board = Canvas(self,height=500,width=100,bg="white",relief=SOLID,borderwidth=1)
+		self.board.pack(side=LEFT,fill="both",expand=True,padx=(10,5),pady=10)
 
 		# NoteBook widget
 		self.notebook = Pmw.NoteBook(self)
@@ -188,7 +194,31 @@ class App(Tk):
 		self.del_Dload_button= ttk.Button(self.p5,text="delete",command=lambda:self.delete_widgets_row(self.Dload_widgets,1,self.Dload_number,self.Dloads),width=7)
 		self.add_Dload_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		self.del_Dload_button.place(relx=0.75,rely=0.9,anchor=CENTER)
-	
+		
+	def draw_node(self,*args,varx,vary):
+		if args[0] in self.nodes_id:
+			self.board.delete(self.nodes_id[args[0]])
+			if self.nodes_var.index(args[0]) % 2  == 0:
+				self.board.delete(self.nodes_id[self.nodes_var[self.nodes_var.index(args[0])+1]])
+			else:
+				self.board.delete(self.nodes_id[self.nodes_var[self.nodes_var.index(args[0])-1]])		
+		try:		
+			self.board.create_oval(varx.get(),vary.get(),varx.get()+7,vary.get()+7,fill="red")
+		except TclError:
+			self.board.create_oval(0,0,0,0)
+			
+		self.nodes_id.update({
+			args[0]:self.board.find_all()[-1]
+		})
+		if self.nodes_var.index(args[0])%2 ==0:
+			self.nodes_id.update({
+				self.nodes_var[self.nodes_var.index(args[0])+1]:self.board.find_all()[-1]
+			})
+		else:
+			self.nodes_id.update({
+				self.nodes_var[self.nodes_var.index(args[0])-1]:self.board.find_all()[-1]
+			})
+				
 	def deploy_widgets(self,widgets_list):
 		for row,widgets in enumerate(widgets_list):
 			for column,widget in enumerate(widgets):
@@ -224,11 +254,15 @@ class App(Tk):
 				"Y":DoubleVar()
 			}
 		})
+		self.Nodes[f"N{self.node_number[-1]}"]["X"].trace("w",lambda *_,varx=self.Nodes[f"N{self.node_number[-1]}"]["X"],vary=self.Nodes[f"N{self.node_number[-1]}"]["Y"]: self.draw_node(*_,varx=varx,vary=vary))
+		self.Nodes[f"N{self.node_number[-1]}"]["Y"].trace("w",lambda *_,varx=self.Nodes[f"N{self.node_number[-1]}"]["X"],vary=self.Nodes[f"N{self.node_number[-1]}"]["Y"]: self.draw_node(*_,varx=varx,vary=vary))
 		self.Nodes_widgets.append([
 			Label(self.p1,text=f"N{self.node_number[-1]}",width=4),
 			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number[-1]}"]["X"],width=9),
 			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number[-1]}"]["Y"],width=9)
 		])
+		self.nodes_var.append(self.Nodes[f"N{self.node_number[-1]}"]["X"]._name)
+		self.nodes_var.append(self.Nodes[f"N{self.node_number[-1]}"]["Y"]._name)
 		self.update_nodes_list()
 		self.update_members_list(self.Supports_widgets,self.Nodes,1)
   
