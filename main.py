@@ -7,7 +7,7 @@ class App(Tk):
 	def __init__(self):
 		Tk.__init__(self)
 
-		self.geometry("430x285")
+		self.geometry("430x585")
 		self.title("MSND")
 
 		self.inputs = {
@@ -62,8 +62,9 @@ class App(Tk):
 		self.Sections = self.inputs["Sections"]
 		
 		self.nodes_id = {}
+		self.members_id = {}
 		self.nodes_var = []
-		
+		self.nome={}
 		#Menu widget
 		self.menu = Menu(self,tearoff=False)
 		self.config(menu=self.menu)
@@ -86,9 +87,9 @@ class App(Tk):
 		self.menu.add_cascade(label="Help", menu=self.help)
 		
 		#Canvas
-		self.board = Canvas(self,height=500,width=100,bg="white",relief=SOLID,borderwidth=1)
-		self.board.pack(side=LEFT,fill="both",expand=True,padx=(10,5),pady=10)
-
+		self.board = Canvas(self,height=300,width=100,bg="white",relief=SOLID,borderwidth=1)
+		self.board.pack(fill="both",expand=True,padx=(10,5),pady=10)
+		
 		# NoteBook widget
 		self.notebook = Pmw.NoteBook(self)
 		self.p1 = self.notebook.add("Nodes")
@@ -96,7 +97,7 @@ class App(Tk):
 		self.p3 = self.notebook.add("Supports")
 		self.p4 = self.notebook.add("Point load")
 		self.p5 = self.notebook.add("Dist load")
-		self.notebook.pack(fill="both",expand=True,padx=10,pady=10)
+		self.notebook.pack()
 		
 		# Nodes page attributes
 		self.node_number = [0]
@@ -195,29 +196,59 @@ class App(Tk):
 		self.add_Dload_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		self.del_Dload_button.place(relx=0.75,rely=0.9,anchor=CENTER)
 		
-	def draw_node(self,*args,varx,vary):
-		if args[0] in self.nodes_id:
-			self.board.delete(self.nodes_id[args[0]])
-			if self.nodes_var.index(args[0]) % 2  == 0:
-				self.board.delete(self.nodes_id[self.nodes_var[self.nodes_var.index(args[0])+1]])
-			else:
-				self.board.delete(self.nodes_id[self.nodes_var[self.nodes_var.index(args[0])-1]])		
+	def draw_node(self,*args,name,varx,vary):
+		if name in self.nodes_id:
+			self.board.delete(self.nodes_id[name])
+		if name in self.nome:
+			for i in self.nome[name]:
+				self.draw_member("Node",name=i,start=None,end=None)
+		
 		try:		
 			self.board.create_oval(varx.get(),vary.get(),varx.get()+7,vary.get()+7,fill="red")
 		except TclError:
-			self.board.create_oval(0,0,0,0)
-			
+			return
 		self.nodes_id.update({
-			args[0]:self.board.find_all()[-1]
+			name:self.board.find_all()[-1]
 		})
-		if self.nodes_var.index(args[0])%2 ==0:
-			self.nodes_id.update({
-				self.nodes_var[self.nodes_var.index(args[0])+1]:self.board.find_all()[-1]
-			})
+	
+	def draw_member(self,*args,name,start,end):
+		if args[0] == "Node":
+			self.board.delete(self.members_id[name])
+			self.Members[name]["start_node"].set("")
+			self.Members[name]["end_node"].set("")
+			return
+		if name in self.members_id:
+			self.board.delete(self.members_id[name])
+		try:
+			sx = self.Nodes[start.get()]["X"].get()
+			sy = self.Nodes[start.get()]["Y"].get()
+			ex = self.Nodes[end.get()]["X"].get()
+			ey = self.Nodes[end.get()]["Y"].get()
+		except KeyError:
+			return
+		
+		self.board.create_line(sx+4,sy+4,ex+4,ey+4,width=3,fill="blue")
+		
+		self.members_id.update({
+			name:self.board.find_all()[-1]
+		})
+		
+		if start.get() in self.nome:
+			self.nome[start.get()].append(name)
 		else:
-			self.nodes_id.update({
-				self.nodes_var[self.nodes_var.index(args[0])-1]:self.board.find_all()[-1]
+			self.nome.update({
+				start.get():[name]
 			})
+		
+		if end.get() in self.nome:
+			self.nome[end.get()].append(name)
+		else:
+			self.nome.update({
+				end.get():[name]
+			})
+		
+		for i in list(self.nodes_id.values()):
+			self.board.tag_raise(i)
 				
 	def deploy_widgets(self,widgets_list):
 		for row,widgets in enumerate(widgets_list):
@@ -248,26 +279,34 @@ class App(Tk):
 	
 	def add_node_row(self):
 		self.node_number.append(self.node_number[-1]+1)
+		name = f"N{self.node_number[-1]}"
+		
 		self.Nodes.update({
-			f"N{self.node_number[-1]}":{
+			name:{
 				"X":DoubleVar(),
 				"Y":DoubleVar()
 			}
 		})
-		self.Nodes[f"N{self.node_number[-1]}"]["X"].trace("w",lambda *_,varx=self.Nodes[f"N{self.node_number[-1]}"]["X"],vary=self.Nodes[f"N{self.node_number[-1]}"]["Y"]: self.draw_node(*_,varx=varx,vary=vary))
-		self.Nodes[f"N{self.node_number[-1]}"]["Y"].trace("w",lambda *_,varx=self.Nodes[f"N{self.node_number[-1]}"]["X"],vary=self.Nodes[f"N{self.node_number[-1]}"]["Y"]: self.draw_node(*_,varx=varx,vary=vary))
+		
+		varx = self.Nodes[name]["X"]
+		vary = self.Nodes[name]["Y"]
+		
+		varx.trace("w",lambda *_,name=name,varx=varx,vary=vary: self.draw_node(*_,name=name,varx=varx,vary=vary))
+		vary.trace("w",lambda *_,name=name,varx=varx,vary=vary: self.draw_node(*_,name=name,varx=varx,vary=vary))
 		self.Nodes_widgets.append([
-			Label(self.p1,text=f"N{self.node_number[-1]}",width=4),
-			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number[-1]}"]["X"],width=9),
-			ttk.Entry(self.p1,textvariable=self.Nodes[f"N{self.node_number[-1]}"]["Y"],width=9)
+			Label(self.p1,text=name,width=4),
+			ttk.Entry(self.p1,textvariable=varx,width=9),
+			ttk.Entry(self.p1,textvariable=vary,width=9)
 		])
-		self.nodes_var.append(self.Nodes[f"N{self.node_number[-1]}"]["X"]._name)
-		self.nodes_var.append(self.Nodes[f"N{self.node_number[-1]}"]["Y"]._name)
+		self.nodes_var.append(varx._name)
+		self.nodes_var.append(vary._name)
 		self.update_nodes_list()
 		self.update_members_list(self.Supports_widgets,self.Nodes,1)
   
 	def add_member_row(self):
 		self.member_number.append(self.member_number[-1]+1)
+		name = f"M{self.member_number[-1]}"
+		
 		self.Members.update({
 			f"M{self.member_number[-1]}":{
 				"start_node":StringVar(),
@@ -277,13 +316,20 @@ class App(Tk):
 				"modifier":IntVar(value=1)
 			}
 		})
+		
+		start = self.Members[name]["start_node"]
+		end = self.Members[name]["end_node"]
+		
+		start.trace("w",lambda *_,name=name,start=start,end=end: self.draw_member(*_,name=name,start=start,end=end))
+		end.trace("w",lambda *_,name=name,start=start,end=end: self.draw_member(*_,name=name,start=start,end=end))
+		
 		self.Members_widgets.append([
-			Label(self.p2,text=f"M{self.member_number[-1]}",width=4),
-			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number[-1]}"]["start_node"],width=6,state="readonly"),
-			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=self.Members[f"M{self.member_number[-1]}"]["end_node"],width=6,state="readonly"),
-			ttk.Combobox(self.p2,values=("Start","End","Both","Unrelease"),textvariable=self.Members[f"M{self.member_number[-1]}"]["release"],width=9,state="readonly"),
-			ttk.Combobox(self.p2,values=list(self.Sections.keys()),textvariable=self.Members[f"M{self.member_number[-1]}"]["section"],width=6,state="readonly"),
-			ttk.Entry(self.p2,textvariable=self.Members[f"M{self.member_number[-1]}"]["modifier"],width=9)
+			Label(self.p2,text=name,width=4),
+			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=start,width=6,state="readonly"),
+			ttk.Combobox(self.p2,values=list(self.Nodes.keys()),textvariable=end,width=6,state="readonly"),
+			ttk.Combobox(self.p2,values=("Start","End","Both","Unrelease"),textvariable=self.Members[name]["release"],width=9,state="readonly"),
+			ttk.Combobox(self.p2,values=list(self.Sections.keys()),textvariable=self.Members[name]["section"],width=6,state="readonly"),
+			ttk.Entry(self.p2,textvariable=self.Members[name]["modifier"],width=9)
 		])
 		self.update_members_list(self.Pload_widgets,self.Members,1)
 		self.update_members_list(self.Dload_widgets,self.Members,1)
