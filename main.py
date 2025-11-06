@@ -2,12 +2,17 @@ from tkinter import *
 from tkinter import ttk
 import Pmw
 from PyNite import FEModel3D
+import math
+from pprint import pprint
+
+scales = []
+var_scale = 1
 
 class App(Tk):
 	def __init__(self):
 		Tk.__init__(self)
 
-		self.geometry("430x585")
+		self.geometry("1050x600")
 		self.title("MSND")
 
 		self.inputs = {
@@ -41,7 +46,7 @@ class App(Tk):
 			}
 		}
 		
-		self.free = {
+		self.restrict = {
 			"Fixed":True,
 			"Free":False
 		}
@@ -61,10 +66,9 @@ class App(Tk):
 		self.Materials = self.inputs["Materials"]
 		self.Sections = self.inputs["Sections"]
 		
-		self.nodes_id = {}
-		self.members_id = {}
-		self.nodes_var = []
-		self.nome={}
+		self.nodes_members={}
+		self.nodes_supports={}
+
 		#Menu widget
 		self.menu = Menu(self,tearoff=False)
 		self.config(menu=self.menu)
@@ -87,8 +91,8 @@ class App(Tk):
 		self.menu.add_cascade(label="Help", menu=self.help)
 		
 		#Canvas
-		self.board = Canvas(self,height=300,width=100,bg="white",relief=SOLID,borderwidth=1)
-		self.board.pack(fill="both",expand=True,padx=(10,5),pady=10)
+		self.board = Canvas(self,height=600,width=600,bg="white",relief=SOLID,borderwidth=1)
+		self.board.pack(side=LEFT,padx=(10,0),pady=10)
 		
 		# NoteBook widget
 		self.notebook = Pmw.NoteBook(self)
@@ -97,7 +101,7 @@ class App(Tk):
 		self.p3 = self.notebook.add("Supports")
 		self.p4 = self.notebook.add("Point load")
 		self.p5 = self.notebook.add("Dist load")
-		self.notebook.pack()
+		self.notebook.pack(side=LEFT,fill="both",expand=True,padx=(10,10),pady=10)
 		
 		# Nodes page attributes
 		self.node_number = [0]
@@ -130,7 +134,8 @@ class App(Tk):
 				Label(self.p3,text="Node"),
 				Label(self.p3,text="Rx"),
 				Label(self.p3,text="Ry"),
-				Label(self.p3,text="Mz")
+				Label(self.p3,text="Mz"),
+				Label(self.p3,text="θ")
 			]
 		]
 		
@@ -196,59 +201,126 @@ class App(Tk):
 		self.add_Dload_button.place(relx=0.9,rely=0.9,anchor=CENTER)
 		self.del_Dload_button.place(relx=0.75,rely=0.9,anchor=CENTER)
 		
+		self.board.bind("<Button-1>",self.start)
+		self.board.bind("<B1-Motion>",self.move)
+		self.board.bind("<MouseWheel>",self.zoom)
+
 	def draw_node(self,*args,name,varx,vary):
-		if name in self.nodes_id:
-			self.board.delete(self.nodes_id[name])
-		if name in self.nome:
-			for i in self.nome[name]:
-				self.draw_member("Node",name=i,start=None,end=None)
+
+		if name in self.Nodes:
+			self.board.delete(name)
 		
+		# to delete members after changing nodes position
+		if name in self.nodes_members:
+			n = self.nodes_members[name]
+			for i in range(len(n)):
+				start = self.Members[n[i]]["start_node"]
+				end = self.Members[n[i]]["end_node"]
+				start.set(start.get())
+				end.set(end.get())
+				
+		if name in self.nodes_supports:
+			self.Supports[self.nodes_supports[name]]["Node"].set(name)
+			
 		try:		
-			self.board.create_oval(varx.get(),vary.get(),varx.get()+7,vary.get()+7,fill="red")
+			self.board.create_oval(varx.get(),vary.get(),varx.get()+8,vary.get()+8,fill="red",tags=name)
 		except TclError:
 			return
-		self.nodes_id.update({
-			name:self.board.find_all()[-1]
-		})
+
+		for i in scales:
+			self.board.scale(name,i[0],i[1],i[2],i[3])
 	
-	def draw_member(self,*args,name,start,end):
-		if args[0] == "Node":
-			self.board.delete(self.members_id[name])
-			self.Members[name]["start_node"].set("")
-			self.Members[name]["end_node"].set("")
-			return
-		if name in self.members_id:
-			self.board.delete(self.members_id[name])
+	def draw_member(self,name,start,end):
+
+		if name in self.Members:
+			self.board.delete(name)
 		try:
 			sx = self.Nodes[start.get()]["X"].get()
 			sy = self.Nodes[start.get()]["Y"].get()
 			ex = self.Nodes[end.get()]["X"].get()
 			ey = self.Nodes[end.get()]["Y"].get()
-		except KeyError:
+		except:
 			return
 		
-		self.board.create_line(sx+4,sy+4,ex+4,ey+4,width=3,fill="blue")
+		self.board.create_line(sx+4,sy+4,ex+4,ey+4,width=3,fill="blue",tags=name) # number 4 is to makke "start,end" in center of node
 		
-		self.members_id.update({
-			name:self.board.find_all()[-1]
-		})
-		
-		if start.get() in self.nome:
-			self.nome[start.get()].append(name)
+		# to add a member nodes to nodes_members dict
+		if start.get() in self.nodes_members:
+			if name not in self.nodes_members[start.get()]:
+				self.nodes_members[start.get()].append(name)
 		else:
-			self.nome.update({
+			self.nodes_members.update({
 				start.get():[name]
 			})
 		
-		if end.get() in self.nome:
-			self.nome[end.get()].append(name)
+		if end.get() in self.nodes_members:
+			if name not in self.nodes_members[end.get()]:
+				self.nodes_members[end.get()].append(name)
 		else:
-			self.nome.update({
+			self.nodes_members.update({
 				end.get():[name]
 			})
 		
-		for i in list(self.nodes_id.values()):
+		for i in scales:
+			self.board.scale(name,i[0],i[1],i[2],i[3])
+		
+		# to overwrite nodes(oval) over members (lines)
+		for i in self.Nodes.keys():
 			self.board.tag_raise(i)
+
+	def draw_support(self,*args,name,theta):
+
+		x = self.Nodes[self.Supports[name]["Node"].get()]["X"]
+		y = self.Nodes[self.Supports[name]["Node"].get()]["Y"]
+		Rx = self.Supports[name]["Rx"].get()
+		Ry = self.Supports[name]["Ry"].get()
+		Mz = self.Supports[name]["Mz"].get()
+
+		if name in self.Supports:
+			self.board.delete(name)
+			
+		try:		
+			if Rx=="Fixed" and Ry=="Fixed" and Mz=="Fixed":
+				self.draw_fixed_support(name,x,y)
+			elif Rx=="Free" and Ry=="Fixed" and Mz=="Free":
+				self.draw_roller_support(name,x,y)
+			elif Rx=="Fixed" and Ry=="Free" and Mz=="Free":
+				self.draw_roller_support(name,x,y)
+			elif Rx=="Fixed" and Ry=="Fixed" and Mz=="Free":
+				self.draw_pinned_support(name,x,y)
+
+			self.rotate(name,x.get()+4,y.get()+4,theta.get())
+			self.nodes_supports.update({
+				self.Supports[name]["Node"].get():name
+			})
+
+		except TclError:
+			return
+
+		for i in scales:
+			self.board.scale(name,i[0],i[1],i[2],i[3])
+
+		# to overwrite nodes(oval) over members (lines)
+		for i in self.Nodes.keys():
+			self.board.tag_raise(i)
+
+	def draw_roller_support(self,name,x,y):
+		self.board.create_line(x.get()+4,y.get()+4,x.get()+20,y.get()+20,width=3,fill="#11da11",tags=name)
+		self.board.create_line(x.get()+4,y.get()+4,x.get()-12,y.get()+20,width=3,fill="#11da11",tags=name)
+		self.board.create_line(x.get()+20,y.get()+20,x.get()-12,y.get()+20,width=3,fill="#11da11",tags=name)
+		self.board.create_line(x.get()+20,y.get()+25,x.get()-12,y.get()+25,width=3,fill="#11da11",tags=name)
+
+	def draw_pinned_support(self,name,x,y):
+		self.board.create_line(x.get()+4,y.get()+4,x.get()+20,y.get()+20,width=3,fill="#11da11",tags=name)
+		self.board.create_line(x.get()+4,y.get()+4,x.get()-12,y.get()+20,width=3,fill="#11da11",tags=name)
+		self.board.create_line(x.get()+20,y.get()+20,x.get()-12,y.get()+20,width=3,fill="#11da11",tags=name)
+		for i in range(-12,20,7):
+			self.board.create_line(x.get()+i,y.get()+20,x.get()+(i-4),y.get()+28,width=3,fill="#11da11",tags=name)
+
+	def draw_fixed_support(self,name,x,y):
+		self.board.create_line(x.get()-12,y.get()+4,x.get()+20,y.get()+4,width=3,fill="#11da11",tags=name)
+		for i in range(-12,20,7):
+			self.board.create_line(x.get()+i,y.get()+4,x.get()+(i-4),y.get()+12,width=3,fill="#11da11",tags=name)
 				
 	def deploy_widgets(self,widgets_list):
 		for row,widgets in enumerate(widgets_list):
@@ -293,13 +365,13 @@ class App(Tk):
 		
 		varx.trace("w",lambda *_,name=name,varx=varx,vary=vary: self.draw_node(*_,name=name,varx=varx,vary=vary))
 		vary.trace("w",lambda *_,name=name,varx=varx,vary=vary: self.draw_node(*_,name=name,varx=varx,vary=vary))
+
 		self.Nodes_widgets.append([
 			Label(self.p1,text=name,width=4),
 			ttk.Entry(self.p1,textvariable=varx,width=9),
 			ttk.Entry(self.p1,textvariable=vary,width=9)
 		])
-		self.nodes_var.append(varx._name)
-		self.nodes_var.append(vary._name)
+		
 		self.update_nodes_list()
 		self.update_members_list(self.Supports_widgets,self.Nodes,1)
   
@@ -320,8 +392,8 @@ class App(Tk):
 		start = self.Members[name]["start_node"]
 		end = self.Members[name]["end_node"]
 		
-		start.trace("w",lambda *_,name=name,start=start,end=end: self.draw_member(*_,name=name,start=start,end=end))
-		end.trace("w",lambda *_,name=name,start=start,end=end: self.draw_member(*_,name=name,start=start,end=end))
+		start.trace("w",lambda *_,name=name,start=start,end=end: self.draw_member(name=name,start=start,end=end))
+		end.trace("w",lambda *_,name=name,start=start,end=end: self.draw_member(name=name,start=start,end=end))
 		
 		self.Members_widgets.append([
 			Label(self.p2,text=name,width=4),
@@ -336,20 +408,37 @@ class App(Tk):
 	
 	def add_support_row(self):
 		self.support_number.append(self.support_number[-1]+1)
+		name = f"S{self.support_number[-1]}"
+
 		self.Supports.update({
 			f"S{self.support_number[-1]}":{
 				"Node":StringVar(),
 				"Rx":StringVar(value="Fixed"),
 				"Ry":StringVar(value="Fixed"),
-				"Mz":StringVar(value="Fixed")
+				"Mz":StringVar(value="Fixed"),
+				"theta":IntVar()
 			}
 		})
+		
+		var_name = self.Supports[name]["Node"]
+		var_Rx = self.Supports[name]["Rx"]
+		var_Ry = self.Supports[name]["Ry"]
+		var_Mz = self.Supports[name]["Mz"]
+		theta = self.Supports[name]["theta"]
+
+		var_name.trace("w",lambda *_,name=name,theta=theta: self.draw_support(*_,name=name,theta=theta))
+		var_Rx.trace("w",lambda *_,name=name,theta=theta: self.draw_support(*_,name=name,theta=theta))
+		var_Ry.trace("w",lambda *_,name=name,theta=theta: self.draw_support(*_,name=name,theta=theta))
+		var_Mz.trace("w",lambda *_,name=name,theta=theta: self.draw_support(*_,name=name,theta=theta))
+		theta.trace("w",lambda *_,name=name,theta=theta: self.draw_support(*_,name=name,theta=theta))
+		
 		self.Supports_widgets.append([
 	     	Label(self.p3,text=f"S{self.support_number[-1]}",width=4),
 	     	ttk.Combobox(self.p3,values=list(self.Nodes.keys()),textvariable=self.Supports[f"S{self.support_number[-1]}"]["Node"],width=6,state="readonly"),
 	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number[-1]}"]["Rx"],width=6,state="readonly"),
 	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number[-1]}"]["Ry"],width=6,state="readonly"),
-	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number[-1]}"]["Mz"],width=6,state="readonly")
+	     	ttk.Combobox(self.p3,values=("Fixed","Free"),textvariable=self.Supports[f"S{self.support_number[-1]}"]["Mz"],width=6,state="readonly"),
+	     	ttk.Entry(self.p3,textvariable=theta,width=9)
 	     ])
 	
 	def add_Pload_row(self):
@@ -611,9 +700,9 @@ class App(Tk):
 		for i in self.Supports.values():
 			model.def_support(
 				i["Node"].get(),
-				self.free[i["Rx"].get()],
-				self.free[i["Ry"].get()],1,1,1,
-				self.free[i["Mz"].get()])
+				self.restrict[i["Rx"].get()],
+				self.restrict[i["Ry"].get()],1,1,1,
+				self.restrict[i["Mz"].get()])
 		
 		for i in self.Ploads.values():
 			model.add_member_pt_load(
@@ -647,7 +736,54 @@ class App(Tk):
 				model.Members[i].plot_deflection("dy",n_points=1000)
 		
 		elif internal_force == "R":
-			self.reactions(self.Nodes.keys(),model)
+			self.reactions(self.Nodes.keys(), model)
+			
+	def start(self,e):
+		self.board.scan_mark(e.x, e.y)
+		
+	def move(self,e):
+		self.board.scan_dragto(e.x, e.y, gain=1)
+		
+	def zoom(self,e):
+		global var_scale
+		x = self.board.canvasx(e.x)
+		y = self.board.canvasy(e.y)
+		if (e.delta > 0):
+			self.board.scale("all", x, y, 11/10, 11/10)
+			scales.append((x,y, 11/10, 11/10))
+			var_scale = var_scale * 11/10
+		elif (e.delta < 0):
+			self.board.scale("all", x, y, 10/11, 10/11)
+			scales.append((x,y, 10/11, 10/11))
+			var_scale = var_scale * 10/11
+			
+	def rotate(self, tag, cx, cy, degrees):
+	    """Rotate all shapes with the given tag around point (cx, cy)."""
+	    radians = math.radians(degrees)
+	    cos_theta = math.cos(radians)
+	    sin_theta = math.sin(radians)
+	
+	    def rotate_point(px, py):
+	        # Translate to origin
+	        x_translated = px - cx
+	        y_translated = py - cy
+	        
+	        # Rotate
+	        x_rotated = x_translated * cos_theta - y_translated * sin_theta
+	        y_rotated = x_translated * sin_theta + y_translated * cos_theta
+	        
+	        # Translate back
+	        return (x_rotated + cx, y_rotated + cy)
+	
+	    items = self.board.find_withtag(tag)
+	    for item in items:
+	        coords = self.board.coords(item)
+	        new_coords = []
+	        for i in range(0, len(coords), 2):
+	            px, py = coords[i], coords[i+1]
+	            rx, ry = rotate_point(px, py)
+	            new_coords.extend([rx, ry])
+	        self.board.coords(item, *new_coords)
 
 if __name__ == "__main__":
 	App = App()
